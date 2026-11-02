@@ -1,0 +1,21 @@
+# Build
+bin/
+obj/
+
+# Tests
+TestResults/
+*.coverage
+*.coveragexml
+
+# Visual Studio
+.vs/
+*.suo
+*.user
+
+# macOS
+.DS_Store
+
+# Local environment
+.env
+.env.*
+!.env.example
