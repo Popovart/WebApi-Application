@@ -1,7 +1,11 @@
+using Services.Interfaces;
+using Services.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
+builder.Services.AddTransient<IProductService, ProductService>();
 
 var app = builder.Build();
         
