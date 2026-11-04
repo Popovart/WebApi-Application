@@ -5,22 +5,11 @@ using Services.Models;
 
 namespace Services.Services;
 
-public class ProductService: IProductService
+public class ProductService(IProductRepository productRepository): IProductService
 {
-    public ResponseResult<IEnumerable<ProductResponse>> Get()
+    public ResponseResult<IEnumerable<ProductResponse>> GetAll()
     {
-        List<Product> data = [
-            new()
-            {
-                Id = Guid.NewGuid(),
-                Name = "product 1",
-                ImgUri = "string",
-                Price = 200,
-                Description = "lorum ipsum"
-            }
-        ];
-
-        var responses = data.ToResponses();
-        return ResponseResult<IEnumerable<ProductResponse>>.Success(responses);
+        var data = productRepository.GetAll().ToResponses();
+        return ResponseResult<IEnumerable<ProductResponse>>.Success(data);
     }
 }

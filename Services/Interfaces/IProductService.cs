@@ -5,5 +5,5 @@ namespace Services.Interfaces;
 
 public interface IProductService
 {
-    public ResponseResult<IEnumerable<ProductResponse>> Get();
+    public ResponseResult<IEnumerable<ProductResponse>> GetAll();
 }
