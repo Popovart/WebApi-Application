@@ -11,12 +11,12 @@ namespace Api.Controllers;
 [Route("[controller]")]
 public class ProductController(IProductService service) : ControllerBase
 {
-    [HttpGet(Name = "Get")]
+    [HttpGet(Name = "getAll")]
     [ProducesResponseType(typeof(IEnumerable<ProductResponse>), (int)HttpStatusCode.OK, MediaTypeNames.Application.Json)]
     [ProducesResponseType(typeof(ProblemDetails), (int)HttpStatusCode.InternalServerError, MediaTypeNames.Application.ProblemJson)]
-    public ActionResult<IEnumerable<ProductResponse>> Get()
+    public ActionResult<IEnumerable<ProductResponse>> GetAll()
     {
-        var response = service.Get();
+        var response = service.GetAll();
         return response.ToActionResult();
     }
 }

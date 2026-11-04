@@ -2,7 +2,7 @@ namespace Services.Models;
 
 public class Product
 {
-    public Guid Id { get; set; }
+    public required Guid Id { get; set; }
     public required string Name { get; set; }
     public required string ImgUri { get; set; }
     public required decimal Price { get; set; }
