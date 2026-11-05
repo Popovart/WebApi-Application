@@ -13,6 +13,21 @@ public class ProductService(IProductRepository productRepository): IProductServi
         return ResponseResult<IEnumerable<ProductResponse>>.Success(response);
     }
 
+    public async Task<ResponseResult<ProductsPageResponse>> GetPageAsync(int pageNumber, int pageSize, int offset, CancellationToken cancellationToken)
+    {
+        var page = await productRepository.GetPageAsync(offset, pageSize, cancellationToken);
+
+        var response = new ProductsPageResponse
+        {
+            Items = page.Items.ToResponses().ToArray(),
+            PageNumber = pageNumber,
+            PageSize = pageSize,
+            TotalCount = page.TotalCount
+        };
+
+        return ResponseResult<ProductsPageResponse>.Success(response);
+    }
+
     public async Task<ResponseResult<ProductResponse>> GetAsync(Guid id, CancellationToken cancellationToken)
     {
         var data = await productRepository.GetAsync(id, cancellationToken);

@@ -2,6 +2,7 @@ using System.Net;
 using System.Net.Mime;
 using Api.Extensions;
 using Api.Models.Requests;
+using Asp.Versioning;
 using Common.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -9,7 +10,9 @@ using Services.Interfaces;
 namespace Api.Controllers;
 
 [ApiController]
-[Route("products")]
+[Tags("Products")]
+[ApiVersion("1.0")]
+[Route("v{version:apiVersion}/products")]
 public class ProductsController(IProductService service) : ControllerBase
 {
     [HttpGet(Name = "Products_GetAll")]
