@@ -14,6 +14,7 @@ public class LocalDbContext(DbContextOptions<LocalDbContext> options) : DbContex
             e.ToTable("Products", "dbo");
             e.Property(x => x.Id).ValueGeneratedNever();
             e.Property(x => x.Price).HasPrecision(18, 2);
+            e.Property(x => x.Description).HasMaxLength(2000);
         });
     }
 }
