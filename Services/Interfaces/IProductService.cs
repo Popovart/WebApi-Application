@@ -5,5 +5,6 @@ namespace Services.Interfaces;
 
 public interface IProductService
 {
-    public ResponseResult<IEnumerable<ProductResponse>> GetAll();
+    public Task<ResponseResult<IEnumerable<ProductResponse>>> GetAllAsync(CancellationToken cancellationToken);
+    public Task<ResponseResult<ProductResponse>> GetAsync(Guid id, CancellationToken cancellationToken);
 }
