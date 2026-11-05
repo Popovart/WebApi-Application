@@ -13,12 +13,27 @@ builder.Services.AddScoped<IProductService, ProductService>();
 builder.Services.AddProblemDetails();
 builder.Services.AddExceptionHandler<ExceptionHandler>();
 builder.Services.AddLogging();
-builder.Services.AddScoped<IProductRepository, ProductRepository>();
-builder.Services.AddDbContext<LocalDbContext>(options =>
+
+var dataSource = builder.Configuration["DataSource"] ?? "Sql";
+switch (dataSource)
 {
-    var connectionString = builder.Configuration.GetConnectionString("ProductsDb");
-    options.UseSqlServer(connectionString);
-});
+    case "Sql":
+        builder.Services.AddScoped<IProductRepository, SqlProductRepository>();
+        builder.Services.AddDbContext<LocalDbContext>(options =>
+        {
+            var connectionString =builder.Configuration.GetConnectionString("ProductsDb");
+            options.UseSqlServer(connectionString);
+        });
+        break;
+
+    case "Mock":
+        builder.Services.AddSingleton<IProductRepository, InMemoryProductRepository>();
+        break;
+
+    default:
+        throw new InvalidOperationException($"Unsupported DataSource value '{dataSource}'. Supported values are 'Sql' and 'Mock'.");
+}
+
 builder.Services
     .AddApiVersioning(options =>
     {
@@ -40,7 +55,6 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
         
-// Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi().WithDocumentPerVersion();
