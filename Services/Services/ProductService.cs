@@ -22,4 +22,14 @@ public class ProductService(IProductRepository productRepository): IProductServi
         var response = data.ToResponse();
         return ResponseResult<ProductResponse>.Success(response);
     }
+
+    public async Task<ResponseResult<ProductResponse>> PatchDescriptionAsync(Guid id, string? description, CancellationToken cancellationToken)
+    {
+        var patchResult = await productRepository.PatchDescriptionAsync(id, description, cancellationToken);
+        if (patchResult == null)
+            return ResponseResult<ProductResponse>.NotFound();
+
+        var response = patchResult.ToResponse();
+        return ResponseResult<ProductResponse>.Success(response);
+    }
 }

@@ -15,4 +15,14 @@ public class ProductRepository(LocalDbContext context): IProductRepository
     {
         return context.Set<Product>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
+
+    public async Task<Product?> PatchDescriptionAsync(Guid id, string? description, CancellationToken cancellationToken)
+    {
+        var product = await context.FindAsync<Product>([id], cancellationToken: cancellationToken);
+        if (product == null)
+            return null;
+        product.Description = description;
+        await context.SaveChangesAsync(cancellationToken);
+        return product;
+    }
 }

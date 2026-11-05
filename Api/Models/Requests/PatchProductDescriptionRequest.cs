@@ -1,7 +1,9 @@
-namespace Api.models.Requests;
+using System.ComponentModel.DataAnnotations;
+
+namespace Api.Models.Requests;
 
 public class PatchProductDescriptionRequest
 {
-    public required Guid Id { get; set; }
+    [MaxLength(2000)]
     public required string? Description { get; set; }
 }
