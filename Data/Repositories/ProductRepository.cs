@@ -6,8 +6,13 @@ namespace Data.Repositories;
 
 public class ProductRepository(LocalDbContext context): IProductRepository
 {
-    public IReadOnlyList<Product> GetAll()
+    public async Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken)
     {
-        return context.Set<Product>().AsNoTracking().ToList();
+        return await context.Set<Product>().AsNoTracking().ToListAsync(cancellationToken);
+    }
+
+    public Task<Product?> GetAsync(Guid id, CancellationToken cancellationToken)
+    {
+        return context.Set<Product>().AsNoTracking().FirstOrDefaultAsync(x => x.Id == id, cancellationToken);
     }
 }

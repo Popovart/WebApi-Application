@@ -28,16 +28,28 @@ public static class ResponseResultExtensions
                 ret = new OkObjectResult(data);
                 break;
             case ResponseStatus.InvalidOperation:
-                ret = new UnprocessableEntityObjectResult(new { Error = result.ErrorMessage, Data = data });
+                ret = new UnprocessableEntityObjectResult(new ProblemDetails
+                {
+                    Status = (int)HttpStatusCode.UnprocessableEntity,
+                    Title = "Unprocessable Content",
+                    Detail = result.ErrorMessage
+                });
                 break;
             case ResponseStatus.NotFound:
-                ret = new NotFoundObjectResult(new { Error = result.ErrorMessage, Data = data });
+                ret = new NotFoundObjectResult(new ProblemDetails
+                {
+                    Status = (int)HttpStatusCode.NotFound,
+                    Title = "Not Found",
+                    Detail = result.ErrorMessage
+                });
                 break;
             case ResponseStatus.InternalError:
-                ret = new ObjectResult(new { Error = result.ErrorMessage, Data = data }) { StatusCode = (int)HttpStatusCode.InternalServerError };
-                break;
             default:
-                ret = new StatusCodeResult((int)HttpStatusCode.InternalServerError);
+                ret = new ObjectResult(new ProblemDetails
+                {
+                    Status = (int)HttpStatusCode.InternalServerError,
+                    Title = "Internal Server Error"
+                });
                 break;
         }
 

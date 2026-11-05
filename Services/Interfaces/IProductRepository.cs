@@ -4,5 +4,6 @@ namespace Services.Interfaces;
 
 public interface IProductRepository
 {
-    IReadOnlyList<Product> GetAll();
+    Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken);
+    Task<Product?> GetAsync(Guid id, CancellationToken cancellationToken);
 }

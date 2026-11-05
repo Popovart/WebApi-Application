@@ -29,6 +29,11 @@ public class ResponseResult<T>: ResponseResult
     {
         return new ResponseResult<T>(data, ResponseStatus.Success);
     }
+    
+    public new static ResponseResult<T> NotFound()
+    {
+        return new ResponseResult<T>(default, ResponseStatus.NotFound);
+    }
 }
 
 /// <summary>
@@ -56,5 +61,10 @@ public class ResponseResult(ResponseStatus status, string? errorMessage = null)
     public static ResponseResult Success()
     {
         return new ResponseResult(ResponseStatus.Success);
+    }
+    
+    public static ResponseResult NotFound()
+    {
+        return new ResponseResult(ResponseStatus.NotFound);
     }
 }
