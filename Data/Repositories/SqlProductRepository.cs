@@ -4,7 +4,7 @@ using Services.Models;
 
 namespace Data.Repositories;
 
-public class ProductRepository(LocalDbContext context): IProductRepository
+public class SqlProductRepository(LocalDbContext context): IProductRepository
 {
     public async Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken)
     {
