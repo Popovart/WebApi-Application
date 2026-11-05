@@ -22,6 +22,14 @@ Swagger provides the v1 and v2 API definitions.
 
 Mock mode requires no database or connection string. Description changes remain available between requests and reset when the application restarts.
 
+## Run from the command line
+
+```sh
+dotnet run --project Api --launch-profile http
+```
+
+The application uses the same configuration and Swagger URL as the IDE launch.
+
 ## Select the data source
 
 Set `DataSource` in `Api/appsettings.Development.json`:
