@@ -1,6 +1,7 @@
 using Api.Controllers;
 using Api.Models.Requests;
 using Common.Responses;
+using Data.Models;
 using Data.Repositories;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -33,7 +34,7 @@ public class ProductsControllerTests
         var services = new ServiceCollection();
         services.AddLogging();
         services.AddControllers();
-        using var provider = services.BuildServiceProvider();
+        await using var provider = services.BuildServiceProvider();
 
         var service = new ProductService(new InMemoryProductRepository());
         var controller = new ProductsV2Controller(service)
@@ -52,6 +53,8 @@ public class ProductsControllerTests
             PageSize = 100
         };
 
+        Assert.Empty(controller.ModelState);
+
         var result = await controller.GetPage(request, CancellationToken.None);
 
         var response = Assert.IsAssignableFrom<ObjectResult>(result.Result);
@@ -65,21 +68,14 @@ public class ProductsControllerTests
     [Fact]
     public async Task PatchDescription_ExistingProduct_ReturnsUpdatedProductAndPreservesOtherFields()
     {
-        const string description = "Controller-updated description";
-
         var service = new ProductService(new InMemoryProductRepository());
         var controller = new ProductsController(service);
-        var id = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var baseline = MockProductData.Create().First();
+        var id = baseline.Id;
+        var description = $"Controller-updated description: {baseline.Description}";
+        var expected = (baseline.Id, baseline.Name, baseline.ImgUri, baseline.Price, Description: description);
         var request = new PatchProductDescriptionRequest
         {
-            Description = description
-        };
-        var expected = new ProductResponse
-        {
-            Id = id,
-            Name = "Monitor",
-            ImgUri = "https://example.com/products/monitor.png",
-            Price = 249.99m,
             Description = description
         };
 
@@ -89,7 +85,7 @@ public class ProductsControllerTests
         Assert.Equal(200, patchResponse.StatusCode);
 
         var patched = Assert.IsType<ProductResponse>(patchResponse.Value);
-        Assert.Equivalent(expected, patched, strict: true);
+        Assert.Equal(expected, (patched.Id, patched.Name, patched.ImgUri, patched.Price, patched.Description));
 
         var readResult = await controller.GetById(id, CancellationToken.None);
 
@@ -97,6 +93,6 @@ public class ProductsControllerTests
         Assert.Equal(200, readResponse.StatusCode);
 
         var reread = Assert.IsType<ProductResponse>(readResponse.Value);
-        Assert.Equivalent(expected, reread, strict: true);
+        Assert.Equal(expected, (reread.Id, reread.Name, reread.ImgUri, reread.Price, reread.Description));
     }
 }

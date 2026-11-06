@@ -1,5 +1,6 @@
 using Common.Models;
 using Common.Responses;
+using Data.Models;
 using Data.Repositories;
 using Services.Services;
 
@@ -11,7 +12,8 @@ public class ProductServiceTests
     public async Task GetAsync_KnownProduct_ReturnsExpectedProduct()
     {
         var service = new ProductService(new InMemoryProductRepository());
-        var id = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var expected = CaptureBaseline().First();
+        var id = expected.Id;
 
         var result = await service.GetAsync(id, CancellationToken.None);
 
@@ -19,11 +21,7 @@ public class ProductServiceTests
 
         var product = Assert.IsType<ProductResponse>(result.Data);
 
-        Assert.Equal(id, product.Id);
-        Assert.Equal("Mouse", product.Name);
-        Assert.Equal("https://example.com/products/mouse.png", product.ImgUri);
-        Assert.Equal(24.50m, product.Price);
-        Assert.Null(product.Description);
+        AssertProduct(expected, product);
     }
 
     [Fact]
@@ -39,22 +37,20 @@ public class ProductServiceTests
     }
 
     [Theory]
-    [InlineData(1, new[]
+    [InlineData(1, 2, 0, new[]
     {
         "00000000-0000-0000-0000-000000000001",
         "00000000-0000-0000-0000-000000000002"
     })]
-    [InlineData(2, new[]
+    [InlineData(2, 2, 2, new[]
     {
         "00000000-0000-0000-0000-000000000003"
     })]
-    [InlineData(3, new string[] { })]
-    public async Task GetPageAsync_ReturnsOrderedPageAndCompleteTotal(int pageNumber, string[] expectedIds)
+    [InlineData(4, 1, 3, new string[] { })]
+    [InlineData(3, 2, 4, new string[] { })]
+    public async Task GetPageAsync_ReturnsOrderedPageAndCompleteTotal(int pageNumber, int pageSize, int offset, string[] expectedIds)
     {
-        const int pageSize = 2;
-
         var service = new ProductService(new InMemoryProductRepository());
-        var offset = (pageNumber - 1) * pageSize;
 
         var result = await service.GetPageAsync(pageNumber, pageSize, offset, CancellationToken.None);
 
@@ -68,39 +64,34 @@ public class ProductServiceTests
         Assert.Equal(expectedIds.Select(Guid.Parse), page.Items.Select(product => product.Id));
     }
 
-    [Theory]
-    [InlineData("Updated description")]
-    [InlineData(null)]
-    public async Task PatchDescriptionAsync_ExistingProduct_PersistsDescriptionAndPreservesOtherFields(string? description)
+    [Fact]
+    public async Task PatchDescriptionAsync_ExistingProduct_PersistsDescriptionAndPreservesOtherFields()
     {
+        var baseline = CaptureBaseline();
         var service = new ProductService(new InMemoryProductRepository());
-        var id = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var original = baseline.First();
+        var id = original.Id;
+        var changedDescription = $"Service-updated description: {original.Description}";
 
-        var originalResult = await service.GetAsync(id, CancellationToken.None);
-
-        Assert.Equal(ResponseStatus.Success, originalResult.Status);
-
-        var original = Assert.IsType<ProductResponse>(originalResult.Data);
-
-        Assert.Equal("27-inch monitor", original.Description);
-
-        var patchResult = await service.PatchDescriptionAsync(id, description, CancellationToken.None);
-
-        Assert.Equal(ResponseStatus.Success, patchResult.Status);
-
-        var patched = Assert.IsType<ProductResponse>(patchResult.Data);
-
-        var readResult = await service.GetAsync(id, CancellationToken.None);
-
-        Assert.Equal(ResponseStatus.Success, readResult.Status);
-        var reread = Assert.IsType<ProductResponse>(readResult.Data);
-        foreach (var product in new[] { patched, reread })
+        foreach (var description in new [] { changedDescription, null })
         {
-            Assert.Equal(description, product.Description);
-            Assert.Equal(id, product.Id);
-            Assert.Equal(original.Name, product.Name);
-            Assert.Equal(original.ImgUri, product.ImgUri);
-            Assert.Equal(original.Price, product.Price);
+            var expected = original with { Description = description };
+            var patchResult = await service.PatchDescriptionAsync(id, description, CancellationToken.None);
+
+            Assert.Equal(ResponseStatus.Success, patchResult.Status);
+            AssertProduct(expected, Assert.IsType<ProductResponse>(patchResult.Data));
+
+            var readResult = await service.GetAsync(id, CancellationToken.None);
+
+            Assert.Equal(ResponseStatus.Success, readResult.Status);
+            AssertProduct(expected, Assert.IsType<ProductResponse>(readResult.Data));
+
+            var listResult = await service.GetAllAsync(CancellationToken.None);
+
+            Assert.Equal(ResponseStatus.Success, listResult.Status);
+            var products = Assert.IsAssignableFrom<IEnumerable<ProductResponse>>(listResult.Data);
+            var expectedProducts = baseline.Select(product => product.Id == id ? expected : product).ToArray();
+            AssertProducts(expectedProducts, products);
         }
     }
 
@@ -110,11 +101,7 @@ public class ProductServiceTests
         var service = new ProductService(new InMemoryProductRepository());
         var missingId = Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff");
 
-        var beforeResult = await service.GetAllAsync(CancellationToken.None);
-
-        Assert.Equal(ResponseStatus.Success, beforeResult.Status);
-
-        var before = Assert.IsAssignableFrom<IEnumerable<ProductResponse>>(beforeResult.Data).ToArray();
+        var expected = CaptureBaseline();
 
         var patchResult = await service.PatchDescriptionAsync(missingId, "Must not be inserted", CancellationToken.None);
 
@@ -124,48 +111,52 @@ public class ProductServiceTests
         var afterResult = await service.GetAllAsync(CancellationToken.None);
         Assert.Equal(ResponseStatus.Success, afterResult.Status);
 
-        var after = Assert.IsAssignableFrom<IEnumerable<ProductResponse>>(afterResult.Data).ToArray();
-        Assert.Equivalent(before, after, strict: true);
+        var after = Assert.IsAssignableFrom<IEnumerable<ProductResponse>>(afterResult.Data);
+        AssertProducts(expected, after);
     }
 
     [Fact]
     public async Task GetAllAsync_ReturnsExpectedProducts()
     {
         var service = new ProductService(new InMemoryProductRepository());
+        var expected = CaptureBaseline();
 
         var result = await service.GetAllAsync(CancellationToken.None);
 
         Assert.Equal(ResponseStatus.Success, result.Status);
 
-        var products = Assert.IsAssignableFrom<IEnumerable<ProductResponse>>(result.Data).ToArray();
-        ProductResponse[] expected =
-        [
-            new ProductResponse
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000001"),
-                Name = "Mouse",
-                ImgUri = "https://example.com/products/mouse.png",
-                Price = 24.50m,
-                Description = null
-            },
-            new ProductResponse
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000002"),
-                Name = "Monitor",
-                ImgUri = "https://example.com/products/monitor.png",
-                Price = 249.99m,
-                Description = "27-inch monitor"
-            },
-            new ProductResponse
-            {
-                Id = Guid.Parse("00000000-0000-0000-0000-000000000003"),
-                Name = "Keyboard",
-                ImgUri = "https://example.com/products/keyboard.png",
-                Price = 79.90m,
-                Description = "Mechanical keyboard"
-            }
-        ];
-
-        Assert.Equivalent(expected, products, strict: true);
+        var products = Assert.IsAssignableFrom<IEnumerable<ProductResponse>>(result.Data);
+        AssertProducts(expected, products);
     }
+
+    private static ProductSnapshot[] CaptureBaseline()
+    {
+        return MockProductData.Create()
+            .Select(product => new ProductSnapshot(
+                product.Id, product.Name, product.ImgUri, product.Price, product.Description))
+            .ToArray();
+    }
+
+    private static void AssertProduct(ProductSnapshot expected, ProductResponse actual)
+    {
+        Assert.Equal(expected.Id, actual.Id);
+        Assert.Equal(expected.Name, actual.Name);
+        Assert.Equal(expected.ImgUri, actual.ImgUri);
+        Assert.Equal(expected.Price, actual.Price);
+        Assert.Equal(expected.Description, actual.Description);
+    }
+
+    private static void AssertProducts(ProductSnapshot[] expected, IEnumerable<ProductResponse> actual)
+    {
+        var products = actual.ToArray();
+        Assert.Equal(expected.Length, products.Length);
+
+        foreach (var baseline in expected)
+        {
+            AssertProduct(baseline, Assert.Single(products, product => product.Id == baseline.Id));
+        }
+    }
+
+    private readonly record struct ProductSnapshot(
+        Guid Id, string Name, string ImgUri, decimal Price, string? Description);
 }

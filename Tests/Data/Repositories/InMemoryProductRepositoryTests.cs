@@ -1,5 +1,5 @@
+using Data.Models;
 using Data.Repositories;
-using Services.Models;
 
 namespace Tests.Data.Repositories;
 
@@ -10,10 +10,27 @@ public class InMemoryProductRepositoryTests
     {
         var first = new InMemoryProductRepository();
         var second = new InMemoryProductRepository();
-        var id = Guid.Parse("00000000-0000-0000-0000-000000000002");
+        var baseline = MockProductData.Create()
+            .Select(product => (product.Id, product.Name, product.ImgUri, product.Price, product.Description))
+            .First();
+        var id = baseline.Id;
+        var description = $"Changed in first repository: {baseline.Description}";
 
-        await first.PatchDescriptionAsync( id, "Changed in first repository", CancellationToken.None);
-        var unaffected = Assert.IsType<Product>(await second.GetAsync(id, CancellationToken.None));
-        Assert.Equal("27-inch monitor", unaffected.Description);
+        await first.PatchDescriptionAsync(id, description, CancellationToken.None);
+
+        var changed = await first.GetAsync(id, CancellationToken.None);
+        Assert.NotNull(changed);
+        Assert.Equal(
+            (baseline.Id, baseline.Name, baseline.ImgUri, baseline.Price, Description: description),
+            (changed.Id, changed.Name, changed.ImgUri, changed.Price, changed.Description));
+
+        var unaffected = await second.GetAsync(id, CancellationToken.None);
+        Assert.NotNull(unaffected);
+        Assert.Equal(baseline, (unaffected.Id, unaffected.Name, unaffected.ImgUri, unaffected.Price, unaffected.Description));
+
+        var third = new InMemoryProductRepository();
+        var fresh = await third.GetAsync(id, CancellationToken.None);
+        Assert.NotNull(fresh);
+        Assert.Equal(baseline, (fresh.Id, fresh.Name, fresh.ImgUri, fresh.Price, fresh.Description));
     }
 }
