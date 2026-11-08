@@ -28,6 +28,41 @@ public class ProductsControllerTests
         Assert.Equal(404, problem.Status);
     }
 
+    [Theory]
+    [InlineData(true, "LastId")]
+    [InlineData(false, "LastDate")]
+    public async Task GetPage_IncompleteCursor_Returns400ValidationProblemForMissingComponent(bool hasLastDate, string missingComponent)
+    {
+        await using var services = new ServiceCollection()
+            .AddLogging()
+            .AddControllers()
+            .Services
+            .BuildServiceProvider();
+        var service = new ProductService(new InMemoryProductRepository());
+        var controller = new ProductsV2Controller(service)
+        {
+            ControllerContext = new ControllerContext
+            {
+                HttpContext = new DefaultHttpContext { RequestServices = services }
+            }
+        };
+        var request = new ProductPaginationRequest
+        {
+            LastDate = hasLastDate ? new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero) : null,
+            LastId = hasLastDate ? null : Guid.Parse("00000000-0000-0000-0000-000000000001"),
+            PageSize = 2
+        };
+
+        var result = await controller.GetPage(request, CancellationToken.None);
+
+        var response = Assert.IsAssignableFrom<ObjectResult>(result.Result);
+        Assert.Equal(400, response.StatusCode);
+
+        var problem = Assert.IsType<ValidationProblemDetails>(response.Value);
+        Assert.Equal(400, problem.Status);
+        Assert.Contains(missingComponent, problem.Errors.Keys);
+    }
+
     [Fact]
     public async Task PatchDescription_ExistingProduct_ReturnsUpdatedProductAndPreservesOtherFields()
     {

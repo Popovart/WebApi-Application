@@ -36,6 +36,31 @@ public class ProductServiceTests
         Assert.Null(result.Data);
     }
 
+    [Fact]
+    public async Task GetPageAsync_NullKeySet_ReturnsInitialOrderedPageAndCompleteTotal()
+    {
+        var service = new ProductService(new InMemoryProductRepository());
+        Guid[] expectedIds =
+        [
+            Guid.Parse("00000000-0000-0000-0000-000000000003"),
+            Guid.Parse("00000000-0000-0000-0000-000000000001")
+        ];
+
+        var result = await service.GetPageAsync(null, 2, CancellationToken.None);
+
+        Assert.Equal(ResponseStatus.Success, result.Status);
+
+        var page = result.Data;
+        Assert.NotNull(page);
+        Assert.Equal(2, page.PageSize);
+        Assert.Equal(3L, page.TotalCount);
+        Assert.Equal(expectedIds, page.Items.Select(product => product.Id));
+
+        Assert.NotNull(page.KeySet);
+        Assert.Equal(new DateTimeOffset(2026, 1, 2, 0, 0, 0, TimeSpan.Zero), page.KeySet.LastDate);
+        Assert.Equal(expectedIds[1], page.KeySet.LastId);
+    }
+
     public static TheoryData<DateTimeOffset, Guid, int, Guid[], DateTimeOffset, Guid> PaginationCases()
     {
         var earlierDate = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
