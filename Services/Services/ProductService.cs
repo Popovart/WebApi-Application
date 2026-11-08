@@ -13,14 +13,14 @@ public class ProductService(IProductRepository productRepository): IProductServi
         return ResponseResult<IEnumerable<ProductResponse>>.Success(response);
     }
 
-    public async Task<ResponseResult<ProductsPageResponse>> GetPageAsync(int pageNumber, int pageSize, int offset, CancellationToken cancellationToken)
+    public async Task<ResponseResult<ProductsPageResponse>> GetPageAsync(KeySet? keySet, int pageSize, CancellationToken cancellationToken)
     {
-        var page = await productRepository.GetPageAsync(offset, pageSize, cancellationToken);
+        var page = await productRepository.GetPageAsync(keySet, pageSize, cancellationToken);
 
         var response = new ProductsPageResponse
         {
             Items = page.Items.ToResponses().ToArray(),
-            PageNumber = pageNumber,
+            KeySet = page.KeySet,
             PageSize = pageSize,
             TotalCount = page.TotalCount
         };

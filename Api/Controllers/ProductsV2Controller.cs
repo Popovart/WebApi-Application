@@ -3,6 +3,7 @@ using System.Net.Mime;
 using Api.Extensions;
 using Api.Models.Requests;
 using Asp.Versioning;
+using Common.Models;
 using Common.Responses;
 using Microsoft.AspNetCore.Mvc;
 using Services.Interfaces;
@@ -21,15 +22,31 @@ public class ProductsV2Controller(IProductService service) : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), (int)HttpStatusCode.InternalServerError, MediaTypeNames.Application.ProblemJson)]
     public async Task<ActionResult<ProductsPageResponse>> GetPage([FromQuery] ProductPaginationRequest request, CancellationToken cancellationToken)
     {
-        var offset = ((long)request.PageNumber - 1) * request.PageSize;
-
-        if (offset > int.MaxValue)
+        KeySet? keySet;
+        switch (request)
         {
-            ModelState.AddModelError("pageNumber", "The requested page offset exceeds the supported limit.");
-            return ValidationProblem(ModelState);
+            case { LastDate: null, LastId: not null }:
+                ModelState.AddModelError("LastDate", "Unable to compose keySet for the request. Given LastDate is null when LastId is not null.");
+                return ValidationProblem(ModelState);
+            case { LastDate: not null, LastId: null }:
+                ModelState.AddModelError("LastId", "Unable to compose keySet for the request. Given LastId is null when LastDate is not null.");
+                return ValidationProblem(ModelState);
+            case {
+                    LastDate: { } lastDate,
+                    LastId: { } lastId
+                 }:
+                keySet = new KeySet
+                {
+                    LastDate = lastDate,
+                    LastId = lastId
+                };
+                break;
+            default:
+                keySet = null;
+                break;
         }
-
-        var response = await service.GetPageAsync(request.PageNumber, request.PageSize, (int)offset, cancellationToken);
+        
+        var response = await service.GetPageAsync(keySet, request.PageSize, cancellationToken);
         return response.ToActionResult();
     }
 }

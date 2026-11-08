@@ -36,32 +36,47 @@ public class ProductServiceTests
         Assert.Null(result.Data);
     }
 
+    public static TheoryData<DateTimeOffset, Guid, int, Guid[], DateTimeOffset, Guid> PaginationCases()
+    {
+        var earlierDate = new DateTimeOffset(2026, 1, 1, 0, 0, 0, TimeSpan.Zero);
+        var laterDate = earlierDate.AddDays(1);
+        var keyboardId = Guid.Parse("00000000-0000-0000-0000-000000000003");
+        var mouseId = Guid.Parse("00000000-0000-0000-0000-000000000001");
+        var monitorId = Guid.Parse("00000000-0000-0000-0000-000000000002");
+
+        return new()
+        {
+            { DateTimeOffset.MinValue, Guid.Empty, 2, [keyboardId, mouseId], laterDate, mouseId },
+            { earlierDate, keyboardId, 2, [mouseId, monitorId], laterDate, monitorId },
+            { laterDate, mouseId, 2, [monitorId], laterDate, monitorId },
+            { laterDate, monitorId, 1, [], laterDate, monitorId }
+        };
+    }
+
     [Theory]
-    [InlineData(1, 2, 0, new[]
-    {
-        "00000000-0000-0000-0000-000000000001",
-        "00000000-0000-0000-0000-000000000002"
-    })]
-    [InlineData(2, 2, 2, new[]
-    {
-        "00000000-0000-0000-0000-000000000003"
-    })]
-    [InlineData(4, 1, 3, new string[] { })]
-    [InlineData(3, 2, 4, new string[] { })]
-    public async Task GetPageAsync_ReturnsOrderedPageAndCompleteTotal(int pageNumber, int pageSize, int offset, string[] expectedIds)
+    [MemberData(nameof(PaginationCases))]
+    public async Task GetPageAsync_ReturnsOrderedPageAndCompleteTotal(
+        DateTimeOffset lastDate,
+        Guid lastId,
+        int pageSize,
+        Guid[] expectedIds,
+        DateTimeOffset expectedLastDate,
+        Guid expectedLastId)
     {
         var service = new ProductService(new InMemoryProductRepository());
+        var keySet = new KeySet { LastDate = lastDate, LastId = lastId };
 
-        var result = await service.GetPageAsync(pageNumber, pageSize, offset, CancellationToken.None);
+        var result = await service.GetPageAsync(keySet, pageSize, CancellationToken.None);
 
         Assert.Equal(ResponseStatus.Success, result.Status);
 
         var page = Assert.IsType<ProductsPageResponse>(result.Data);
 
-        Assert.Equal(pageNumber, page.PageNumber);
+        Assert.Equal(expectedLastDate, page.KeySet.LastDate);
+        Assert.Equal(expectedLastId, page.KeySet.LastId);
         Assert.Equal(pageSize, page.PageSize);
         Assert.Equal(3L, page.TotalCount);
-        Assert.Equal(expectedIds.Select(Guid.Parse), page.Items.Select(product => product.Id));
+        Assert.Equal(expectedIds, page.Items.Select(product => product.Id));
     }
 
     [Fact]

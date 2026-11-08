@@ -6,9 +6,9 @@ namespace Api.Models.Requests;
 
 public class ProductPaginationRequest
 {
-    [DefaultValue(1)]
-    [Range(1, int.MaxValue)]
-    public int PageNumber { get; set; } = 1;
+    public required DateTimeOffset? LastDate { get; set; }
+    
+    public required Guid? LastId { get; set; }
 
     [DefaultValue(10)]
     [Range(1, 100)]

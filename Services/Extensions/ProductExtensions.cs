@@ -10,6 +10,7 @@ public static class ProductExtensions
         {
             Id = product.Id,
             Name = product.Name,
+            CreatedAt = product.CreatedAt,
             ImgUri = product.ImgUri,
             Price = product.Price,
             Description = product.Description,

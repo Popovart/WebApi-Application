@@ -29,43 +29,6 @@ public class ProductsControllerTests
     }
 
     [Fact]
-    public async Task GetPage_ExcessiveOffset_Returns400ValidationProblem()
-    {
-        var services = new ServiceCollection();
-        services.AddLogging();
-        services.AddControllers();
-        await using var provider = services.BuildServiceProvider();
-
-        var service = new ProductService(new InMemoryProductRepository());
-        var controller = new ProductsV2Controller(service)
-        {
-            ControllerContext = new ControllerContext
-            {
-                HttpContext = new DefaultHttpContext
-                {
-                    RequestServices = provider
-                }
-            }
-        };
-        var request = new ProductPaginationRequest
-        {
-            PageNumber = int.MaxValue,
-            PageSize = 100
-        };
-
-        Assert.Empty(controller.ModelState);
-
-        var result = await controller.GetPage(request, CancellationToken.None);
-
-        var response = Assert.IsAssignableFrom<ObjectResult>(result.Result);
-        Assert.Equal(400, response.StatusCode);
-
-        var problem = Assert.IsAssignableFrom<ValidationProblemDetails>(response.Value);
-        Assert.Equal(400, problem.Status);
-        Assert.Contains("pageNumber", problem.Errors.Keys);
-    }
-
-    [Fact]
     public async Task PatchDescription_ExistingProduct_ReturnsUpdatedProductAndPreservesOtherFields()
     {
         var service = new ProductService(new InMemoryProductRepository());

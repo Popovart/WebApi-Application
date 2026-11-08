@@ -1,3 +1,4 @@
+using Common.Models;
 using Microsoft.EntityFrameworkCore;
 using Services.Interfaces;
 using Services.Models;
@@ -11,22 +12,52 @@ public class SqlProductRepository(LocalDbContext context): IProductRepository
         return await context.Set<Product>().AsNoTracking().ToListAsync(cancellationToken);
     }
 
-    public async Task<ProductPageResult> GetPageAsync(int offset, int pageSize, CancellationToken cancellationToken)
+    public async Task<ProductPageResult> GetPageAsync(KeySet? keySet, int pageSize, CancellationToken cancellationToken)
     {
         var query = context.Set<Product>().AsNoTracking();
 
         var totalCount = await query.LongCountAsync(cancellationToken);
 
-        var items = await query
-            .OrderBy(product => product.Id)
-            .Skip(offset)
-            .Take(pageSize)
-            .ToListAsync(cancellationToken);
+        query = query
+            .OrderBy(product => product.CreatedAt)
+            .ThenBy(product => product.Id);
+        
+        if (keySet != null)
+        {
+            query = query.Where(
+                x => x.CreatedAt > keySet.LastDate || 
+                (x.CreatedAt == keySet.LastDate && x.Id > keySet.LastId));
+        }    
+        var items = await query.Take(pageSize).ToListAsync(cancellationToken);    
+        
+        var last = items.LastOrDefault();
 
+        KeySet? keySetResult;
+        if (last == null)
+        {
+            if (keySet == null)
+                keySetResult = null;
+            else
+                keySetResult = new KeySet
+                {
+                    LastDate = keySet.LastDate,
+                    LastId = keySet.LastId
+                };
+        }
+        else
+        {
+            keySetResult = new KeySet
+            {
+                LastDate = last.CreatedAt,
+                LastId = last.Id
+            };
+        }
+        
         return new ProductPageResult
         {
             Items = items,
-            TotalCount = totalCount
+            TotalCount = totalCount,
+            KeySet = keySetResult
         };
     }
 

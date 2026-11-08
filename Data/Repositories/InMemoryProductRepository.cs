@@ -1,3 +1,4 @@
+using Common.Models;
 using Data.Models;
 using Services.Interfaces;
 using Services.Models;
@@ -6,7 +7,7 @@ namespace Data.Repositories;
 
 public sealed class InMemoryProductRepository : IProductRepository
 {
-    private readonly Lock _sync = new();
+    private readonly Lock _sync = new(); 
     private readonly List<Product> _products = MockProductData.Create();
 
     public Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken)
@@ -19,21 +20,50 @@ public sealed class InMemoryProductRepository : IProductRepository
         }
     }
 
-    public Task<ProductPageResult> GetPageAsync(int offset, int pageSize, CancellationToken cancellationToken)
+    public Task<ProductPageResult> GetPageAsync(KeySet? keySet, int pageSize, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_sync)
         {
+            IEnumerable<Product> query = _products
+                .OrderBy(product => product.CreatedAt)
+                .ThenBy(product => product.Id);
+            
+            if (keySet != null)
+            {
+                query = query.Where(x =>
+                    x.CreatedAt > keySet.LastDate || (x.CreatedAt == keySet.LastDate && x.Id > keySet.LastId));
+            }    
+            
+            var items = query.Take(pageSize).Select(Copy).ToArray();
+            var last = items.LastOrDefault();
+            
+            KeySet? keySetResult;
+            if (last == null)
+            {
+                if (keySet == null)
+                    keySetResult = null;
+                else
+                    keySetResult = new KeySet
+                    {
+                        LastDate = keySet.LastDate,
+                        LastId = keySet.LastId
+                    };
+            }
+            else
+            {
+                keySetResult = new KeySet
+                {
+                    LastDate = last.CreatedAt,
+                    LastId = last.Id
+                };
+            }
             return Task.FromResult(new ProductPageResult
             {
-                Items = _products
-                    .OrderBy(product => product.Id)
-                    .Skip(offset)
-                    .Take(pageSize)
-                    .Select(Copy)
-                    .ToArray(),
-                TotalCount = _products.Count
+                Items = items,
+                TotalCount = _products.Count,
+                KeySet = keySetResult
             });
         }
     }
@@ -77,6 +107,7 @@ public sealed class InMemoryProductRepository : IProductRepository
         return new Product
         {
             Id = product.Id,
+            CreatedAt = product.CreatedAt,
             Name = product.Name,
             ImgUri = product.ImgUri,
             Price = product.Price,
