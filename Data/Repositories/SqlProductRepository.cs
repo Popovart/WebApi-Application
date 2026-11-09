@@ -12,53 +12,22 @@ public class SqlProductRepository(LocalDbContext context): IProductRepository
         return await context.Set<Product>().AsNoTracking().ToListAsync(cancellationToken);
     }
 
-    public async Task<ProductPageResult> GetPageAsync(KeySet? keySet, int pageSize, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<Product>> GetPageAsync(ProductCursor? cursor, int take, CancellationToken cancellationToken)
     {
         var query = context.Set<Product>().AsNoTracking();
 
-        var totalCount = await query.LongCountAsync(cancellationToken);
+        if (cursor != null)
+        {
+            query = query.Where(product =>
+                product.CreatedAt > cursor.LastDate ||
+                (product.CreatedAt == cursor.LastDate && product.Id > cursor.LastId));
+        }
 
-        query = query
+        return await query
             .OrderBy(product => product.CreatedAt)
-            .ThenBy(product => product.Id);
-        
-        if (keySet != null)
-        {
-            query = query.Where(
-                x => x.CreatedAt > keySet.LastDate || 
-                (x.CreatedAt == keySet.LastDate && x.Id > keySet.LastId));
-        }    
-        var items = await query.Take(pageSize).ToListAsync(cancellationToken);    
-        
-        var last = items.LastOrDefault();
-
-        KeySet? keySetResult;
-        if (last == null)
-        {
-            if (keySet == null)
-                keySetResult = null;
-            else
-                keySetResult = new KeySet
-                {
-                    LastDate = keySet.LastDate,
-                    LastId = keySet.LastId
-                };
-        }
-        else
-        {
-            keySetResult = new KeySet
-            {
-                LastDate = last.CreatedAt,
-                LastId = last.Id
-            };
-        }
-        
-        return new ProductPageResult
-        {
-            Items = items,
-            TotalCount = totalCount,
-            KeySet = keySetResult
-        };
+            .ThenBy(product => product.Id)
+            .Take(take)
+            .ToListAsync(cancellationToken);
     }
 
     public Task<Product?> GetAsync(Guid id, CancellationToken cancellationToken)

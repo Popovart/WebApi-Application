@@ -13,19 +13,25 @@ public class ProductService(IProductRepository productRepository): IProductServi
         return ResponseResult<IEnumerable<ProductResponse>>.Success(response);
     }
 
-    public async Task<ResponseResult<ProductsPageResponse>> GetPageAsync(KeySet? keySet, int pageSize, CancellationToken cancellationToken)
+    public async Task<ResponseResult<ProductPageResult>> GetPageAsync(ProductCursor? cursor, int pageSize, CancellationToken cancellationToken)
     {
-        var page = await productRepository.GetPageAsync(keySet, pageSize, cancellationToken);
+        var products = await productRepository.GetPageAsync(cursor, pageSize + 1, cancellationToken);
+        var returnedCount = Math.Min(products.Count, pageSize);
+        var items = products.Take(returnedCount).ToResponses().ToArray();
 
-        var response = new ProductsPageResponse
+        ProductCursor? nextCursor = null;
+        if (products.Count > pageSize)
         {
-            Items = page.Items.ToResponses().ToArray(),
-            KeySet = page.KeySet,
-            PageSize = pageSize,
-            TotalCount = page.TotalCount
-        };
+            var last = products[returnedCount - 1];
+            nextCursor = new ProductCursor { LastDate = last.CreatedAt, LastId = last.Id };
+        }
 
-        return ResponseResult<ProductsPageResponse>.Success(response);
+        return ResponseResult<ProductPageResult>.Success(new ProductPageResult
+        {
+            Items = items,
+            PageSize = pageSize,
+            NextCursor = nextCursor
+        });
     }
 
     public async Task<ResponseResult<ProductResponse>> GetAsync(Guid id, CancellationToken cancellationToken)

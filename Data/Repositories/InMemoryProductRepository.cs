@@ -1,3 +1,4 @@
+using System.Data.SqlTypes;
 using Common.Models;
 using Data.Models;
 using Services.Interfaces;
@@ -8,7 +9,17 @@ namespace Data.Repositories;
 public sealed class InMemoryProductRepository : IProductRepository
 {
     private readonly Lock _sync = new(); 
-    private readonly List<Product> _products = MockProductData.Create();
+    private readonly List<Product> _products;
+
+    public InMemoryProductRepository()
+    {
+        _products = MockProductData.Create();
+    }
+
+    internal InMemoryProductRepository(IEnumerable<Product> products)
+    {
+        _products = products.Select(Copy).ToList();
+    }
 
     public Task<IReadOnlyList<Product>> GetAllAsync(CancellationToken cancellationToken)
     {
@@ -20,51 +31,29 @@ public sealed class InMemoryProductRepository : IProductRepository
         }
     }
 
-    public Task<ProductPageResult> GetPageAsync(KeySet? keySet, int pageSize, CancellationToken cancellationToken)
+    public Task<IReadOnlyList<Product>> GetPageAsync(ProductCursor? cursor, int take, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
 
         lock (_sync)
         {
-            IEnumerable<Product> query = _products
+            IEnumerable<Product> query = _products;
+            if (cursor != null)
+            {
+                var lastId = new SqlGuid(cursor.LastId);
+                query = query.Where(product =>
+                    product.CreatedAt > cursor.LastDate ||
+                    (product.CreatedAt == cursor.LastDate && new SqlGuid(product.Id).CompareTo(lastId) > 0));
+            }
+
+            var items = query
                 .OrderBy(product => product.CreatedAt)
-                .ThenBy(product => product.Id);
-            
-            if (keySet != null)
-            {
-                query = query.Where(x =>
-                    x.CreatedAt > keySet.LastDate || (x.CreatedAt == keySet.LastDate && x.Id > keySet.LastId));
-            }    
-            
-            var items = query.Take(pageSize).Select(Copy).ToArray();
-            var last = items.LastOrDefault();
-            
-            KeySet? keySetResult;
-            if (last == null)
-            {
-                if (keySet == null)
-                    keySetResult = null;
-                else
-                    keySetResult = new KeySet
-                    {
-                        LastDate = keySet.LastDate,
-                        LastId = keySet.LastId
-                    };
-            }
-            else
-            {
-                keySetResult = new KeySet
-                {
-                    LastDate = last.CreatedAt,
-                    LastId = last.Id
-                };
-            }
-            return Task.FromResult(new ProductPageResult
-            {
-                Items = items,
-                TotalCount = _products.Count,
-                KeySet = keySetResult
-            });
+                .ThenBy(product => new SqlGuid(product.Id))
+                .Take(take)
+                .Select(Copy)
+                .ToArray();
+
+            return Task.FromResult<IReadOnlyList<Product>>(items);
         }
     }
 

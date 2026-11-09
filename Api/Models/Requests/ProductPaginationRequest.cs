@@ -1,15 +1,16 @@
-
 using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
+using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Models.Requests;
 
 public class ProductPaginationRequest
 {
-    public required DateTimeOffset? LastDate { get; set; }
-    
-    public required Guid? LastId { get; set; }
+    [FromQuery(Name = "cursor")]
+    [DisplayFormat(ConvertEmptyStringToNull = false)]
+    public string? Cursor { get; set; }
 
+    [FromQuery(Name = "pageSize")]
     [DefaultValue(10)]
     [Range(1, 100)]
     public int PageSize { get; set; } = 10;

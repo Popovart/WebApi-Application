@@ -1,12 +1,13 @@
 using Common.Models;
+using Common.Responses;
 
 namespace Services.Models;
 
 public class ProductPageResult
 {
-    public required IReadOnlyList<Product> Items { get; set; }
+    public required IReadOnlyList<ProductResponse> Items { get; set; }
 
-    public required long TotalCount { get; set; }
-    
-    public required KeySet? KeySet { get; set; }
+    public required int PageSize { get; set; }
+
+    public required ProductCursor? NextCursor { get; set; }
 }
